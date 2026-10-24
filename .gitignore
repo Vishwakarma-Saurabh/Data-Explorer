@@ -1,5 +1,7 @@
 .venv/
 __pycache__/
 *.pyc
-sales.db
-output/
+.venv/
+venv/
+*.csv
+*.xlsx
