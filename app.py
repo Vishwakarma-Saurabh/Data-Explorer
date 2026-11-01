@@ -1,3 +1,6 @@
+import pandas as pd
+import plotly.express as px
+from src.analysis import run_clustering, select_numeric_columns
 import streamlit as st
 import pandas as pd
 from src.ingestion import read_csv_with_fallback, read_excel_with_fallback
@@ -83,6 +86,70 @@ cleaned = result["df"]
 
 st.subheader("Cleaned Data Preview")
 st.dataframe(cleaned.head(50), use_container_width=True)
+
+# --- Phase 4: Unsupervised analysis ---
+st.subheader("Unsupervised Analysis (PCA + K-Means)")
+
+numeric_df, dropped_non_numeric = select_numeric_columns(cleaned)
+
+if dropped_non_numeric:
+    st.info(
+        f"Excluded {len(dropped_non_numeric)} non-numeric column(s) from analysis: "
+        f"{dropped_non_numeric}. Categorical encoding arrives in Phase 4.5."
+    )
+
+if numeric_df.shape[1] < 2 or numeric_df.shape[0] < 4:
+    st.warning(
+        f"Need at least 2 numeric columns and 4 rows. "
+        f"Got {numeric_df.shape[1]} numeric column(s), {numeric_df.shape[0]} row(s)."
+    )
+    st.stop()
+
+with st.spinner("Running PCA + K-Means..."):
+    try:
+        analysis = run_clustering(numeric_df)
+    except ValueError as e:
+        st.error(f"Analysis failed: {e}")
+        st.stop()
+
+# Silhouette score table
+score_df = pd.DataFrame(analysis["scores"])
+st.write("**Silhouette score per K** (higher is better; best in bold)")
+best_row = score_df.loc[score_df["silhouette"].idxmax()]
+score_df_display = score_df.copy()
+score_df_display["silhouette"] = score_df_display["silhouette"].map(lambda v: f"{v:.3f}")
+st.dataframe(score_df_display, use_container_width=True, hide_index=True)
+st.caption(f"Auto-selected K = **{analysis['best_k']}** (highest silhouette = {best_row['silhouette']:.3f})")
+
+# PCA scatter plot
+ev = analysis["explained_variance_ratio"]
+x_label = f"PC1 ({ev[0]:.1%} variance)"
+y_label = f"PC2 ({ev[1]:.1%} variance)" if len(ev) > 1 else "PC2"
+
+plot_df = pd.DataFrame(
+    analysis["X_pca"], columns=["PC1", "PC2"] if analysis["X_pca"].shape[1] == 2 else ["PC1", "PC2"][:analysis["X_pca"].shape[1]]
+)
+plot_df["Cluster"] = analysis["labels"].astype(str)
+
+fig = px.scatter(
+    plot_df, x="PC1", y="PC2", color="Cluster",
+    title=f"PCA projection — K={analysis['best_k']} clusters",
+    opacity=0.75,
+)
+fig.update_layout(legend_title_text="Cluster")
+st.plotly_chart(fig, use_container_width=True)
+
+with st.expander("Why 2D PCA (and not t-SNE / UMAP)?"):
+    st.write(
+        "PCA is linear and deterministic — running twice yields the same plot. "
+        "t-SNE and UMAP are non-deterministic across versions and produce "
+        "plots where **distance between clusters is not meaningful**. "
+        "If PC1 + PC2 explain only a small fraction of variance, the 2D view "
+        "is a lossy summary; treat cluster separation on this plot as a hint, "
+        "not a proof."
+    )
+    st.write(f"Current PC1 + PC2 explain **{ev[0] + (ev[1] if len(ev) > 1 else 0):.1%}** of total variance.")
+
 
 # --- Phase 2 summary on cleaned data ---
 st.subheader("Column Summary (cleaned)")
