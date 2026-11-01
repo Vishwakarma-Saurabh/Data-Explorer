@@ -5,3 +5,5 @@ __pycache__/
 venv/
 *.csv
 *.xlsx
+.vscode
+.pytest_cache
