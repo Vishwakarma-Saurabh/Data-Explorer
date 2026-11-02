@@ -1,25 +1,47 @@
-# 📊 Data-Explorer: Interactive Auto-EDA & ML Insights Engine
+# Auto EDA Studio
 
-An interactive, user-driven web application built with **Streamlit**, **Pandas**, and **Scikit-Learn** that automates Exploratory Data Analysis (EDA) and delivers instant visual insights for any uploaded dataset.
+Upload a CSV or Excel dataset and get automated data-quality insights,
+PCA-based visualization, and K-Means clustering with plain-language
+cluster descriptions. No supervised ML — this is an **Auto-EDA + unsupervised
+structure discovery** tool.
 
----
+**Live demo:** https://auto-eda-studio.streamlit.app *(replace with your URL)*
 
-## 🚀 Key Features
+> The live demo may take ~30 seconds to wake if idle. The Docker image is the
+> reproducible deployment artifact; the Streamlit Cloud app is the quick-look demo.
 
-* **Dynamic File Upload:** Support for CSV and Excel files with automatic schema and data-type detection.
-* **Automated EDA (Auto-EDA):** Instantly computes summary statistics, missing value distributions, and correlation matrices without hardcoded scripts.
-* **Interactive Visualizations:** Generates dynamic Plotly charts (histograms, scatter plots, correlation heatmaps) based on user selections.
-* **Unsupervised Learning & Clustering:** Automatically groups data patterns and detects outliers using machine learning models on the fly.
-* **Streamlined UI:** Built entirely in Python using Streamlit for a fast, responsive, and web-ready user interface.
+## What it does
 
----
+1. **Ingest** — CSV (UTF-8 / Latin-1, auto-delimiter) and Excel (.xlsx/.xlsm).
+2. **Profile** — flags columns with >30% missing, constant columns, and
+   high-cardinality ID-like strings.
+3. **Clean** — user picks: drop constant columns, drop rows with missing,
+   or drop >50%-missing columns and median-fill numeric.
+4. **Cluster** — StandardScaler → PCA (2D) → K-Means with silhouette-based
+   K selection (K=2..8). PCA scatter plot with explained variance.
+5. **Explain** — per-cluster profile table (z-scores vs. overall mean),
+   top distinguishing features, and a downloadable Markdown report.
 
-## 🛠️ Tech Stack
+## Architecture
+repo/
+├── app.py 
+├── requirements.txt
+├── packages.txt 
+├── Dockerfile
+├── Makefile
+├── src/
+│ ├── ingestion.py # File reading, encoding fallbacks
+│ ├── profiling.py # Quick data-quality insights
+│ ├── cleaning.py # User-controlled preprocessing
+│ ├── analysis.py # StandardScaler, PCA, K-Means, silhouette
+│ └── reporting.py # Cluster profiles + Markdown export
+└── tests/
 
-* **Frontend & UI:** [Streamlit](https://streamlit.io/)
-* **Data Processing & Analysis:** Pandas, NumPy
-* **Visualizations:** Plotly
-* **Machine Learning:** Scikit-Learn
-* **Cloud Infrastructure:** Streamlit Community Cloud
+## Run locally
+pip install -r requirements.txt
 
----
+make run            # Start the Streamlit app
+make test           # Run tests
+make docker-build   # Build Docker image
+make docker-run     # Run Docker container
+make clean          # Remove cache files

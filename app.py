@@ -1,3 +1,10 @@
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parent
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
 import pandas as pd
 import plotly.express as px
 from src.analysis import run_clustering, select_numeric_columns
