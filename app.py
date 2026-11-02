@@ -164,7 +164,7 @@ with st.expander("Full profiling report on cleaned data (slower)"):
                 html = profile.to_html()
             st.components.v1.html(html, width=1000, height=600, scrolling=True)
         except ImportError as er:
-            st.error(f"Import failed: {e!r}")
+            st.error(f"Import failed: {er!r}")
             raise
         except Exception as e:
             st.error(f"Profiling failed: {type(e).__name__}: {e}")
