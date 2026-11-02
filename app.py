@@ -163,7 +163,8 @@ with st.expander("Full profiling report on cleaned data (slower)"):
                 profile = ProfileReport(cleaned, explorative=True, minimal=True)
                 html = profile.to_html()
             st.components.v1.html(html, width=1000, height=600, scrolling=True)
-        except ImportError:
-            st.error("ydata-profiling not installed.")
+        except ImportError as er:
+            st.error(f"Import failed: {e!r}")
+            raise
         except Exception as e:
             st.error(f"Profiling failed: {type(e).__name__}: {e}")
