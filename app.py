@@ -6,9 +6,15 @@ import pandas as pd
 from src.ingestion import read_csv_with_fallback, read_excel_with_fallback
 from src.profiling import quick_insights, summarize_dtypes
 from src.cleaning import clean_dataframe
+from src.reporting import (
+    build_profile_table,
+    top_features_per_cluster,
+    describe_cluster,
+    build_markdown_report,
+)
 
 st.set_page_config(page_title="Auto EDA Studio", layout="wide")
-st.title("Auto EDA Studio — Phase 3")
+st.title("Auto EDA Studio — Version - 5")
 
 
 @st.cache_data(show_spinner=False)
@@ -149,6 +155,58 @@ with st.expander("Why 2D PCA (and not t-SNE / UMAP)?"):
         "not a proof."
     )
     st.write(f"Current PC1 + PC2 explain **{ev[0] + (ev[1] if len(ev) > 1 else 0):.1%}** of total variance.")
+
+
+# --- Phase 5: Cluster profiling ---
+st.subheader("Cluster Profiles")
+
+numeric_cols = numeric_df.columns.tolist()
+profile = build_profile_table(numeric_df, analysis["labels"], numeric_cols)
+top_feats = top_features_per_cluster(profile, top_n=3)
+
+# Full profile table (wide, but critical)
+st.write("**Per-cluster means vs. overall**")
+display_table = profile["cluster_means"].copy()
+display_table["__overall__"] = profile["overall_mean"]
+display_table["__size__"] = profile["cluster_sizes"]
+st.dataframe(
+    display_table.style.format("{:.3g}"),
+    use_container_width=True,
+)
+
+# Per-cluster description cards
+descriptions = {}
+for cid in sorted(top_feats.keys()):
+    size = int(profile["cluster_sizes"].loc[cid])
+    desc = describe_cluster(cid, top_feats[cid], size=size)
+    descriptions[cid] = desc
+    st.markdown(f"**{desc}**")
+    feats_table = pd.DataFrame(top_feats[cid])[["feature", "cluster_mean", "overall_mean", "z"]]
+    feats_table["z"] = feats_table["z"].map(lambda v: f"{v:+.2f}")
+    feats_table["cluster_mean"] = feats_table["cluster_mean"].map(lambda v: f"{v:.3g}")
+    feats_table["overall_mean"] = feats_table["overall_mean"].map(lambda v: f"{v:.3g}")
+    st.dataframe(feats_table, use_container_width=True, hide_index=True)
+
+# --- Downloadable Markdown report ---
+st.subheader("Download Report")
+md = build_markdown_report(
+    filename=uploaded.name,
+    profile=profile,
+    top_features=top_feats,
+    descriptions=descriptions,
+    silhouette_scores=analysis["scores"],
+    best_k=analysis["best_k"],
+    explained_variance=analysis["explained_variance_ratio"],
+)
+st.download_button(
+    label="Download Markdown report",
+    data=md,
+    file_name=f"auto_eda_report_{uploaded.name.rsplit('.', 1)[0]}.md",
+    mime="text/markdown",
+)
+
+with st.expander("Preview report"):
+    st.markdown(md)
 
 
 # --- Phase 2 summary on cleaned data ---
